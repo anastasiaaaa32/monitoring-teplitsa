@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Умная теплица | Мониторинг микроклимата</title>
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #1b5e20, #2e7d32);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }
+        .header p {
+            color: #1b5e20;
+            background: rgba(255,255,200,0.7);
+            display: inline-block;
+            padding: 0.3rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+        }
+
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: rgba(255, 255, 245, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,32,0,0.2);
+            border: 1px solid #dcedc8;
+        }
+        .form-card {
+            flex: 1.2;
+            min-width: 280px;
+        }
+        .status-card {
+            flex: 1.8;
+            min-width: 320px;
+        }
+
+        .input-group {
+            margin-bottom: 1.2rem;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            color: #2e5c2e;
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+        }
+        label span {
+            font-weight: normal;
+            font-size: 0.75rem;
+            color: #5d6e47;
+            margin-left: 6px;
+        }
+        input, select {
+            background: #fefef7;
+            border: 1.5px solid #c5e0b4;
+            border-radius: 2rem;
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 3px rgba(46,125,50,0.2);
+        }
+        .light-hint {
+            font-size: 0.75rem;
+            color: #5d6e47;
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+            margin-top: 0.3rem;
+        }
+        button:hover {
+            background: #1b5e20;
+            transform: scale(0.98);
+        }
+        .btn-reset {
+            background: #6c757d;
+            margin-top: 0.6rem;
+        }
+        .btn-reset:hover {
+            background: #495057;
+        }
+
+        .status-badge {
+            background: #f1f8e9;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 1.2rem;
+        }
+        .overall-status {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 0.3rem 0;
+        }
+        .issues-list {
+            background: #fff8e7;
+            border-radius: 1.2rem;
+            padding: 1rem;
+        }
+        .issue-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e0e0c0;
+            display: flex;
+            gap: 8px;
+        }
+        .issue-item:last-child {
+            border-bottom: none;
+        }
+        .issue-good {
+            color: #2e7d32;
+        }
+        .issue-warning {
+            color: #f57c00;
+        }
+        .issue-danger {
+            color: #c62828;
+        }
+
+        .history-section {
+            background: rgba(255,255,245,0.96);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            gap: 10px;
+        }
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-select {
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+        }
+        .history-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        .history-item {
+            background: white;
+            border-radius: 1rem;
+            padding: 0.7rem 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .history-info {
+            flex: 1;
+            font-size: 0.85rem;
+        }
+        .delete-btn {
+            background: #d32f2f;
+            padding: 0.3rem 0.8rem;
+            width: auto;
+            margin: 0;
+            font-size: 0.75rem;
+        }
+        .clear-btn {
+            background: #b71c1c;
+            width: auto;
+            padding: 0.4rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .chart-container {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #fafaf0;
+            border-radius: 1rem;
+        }
+        canvas {
+            max-height: 250px;
+            width: 100%;
+        }
+
+        @media (max-width: 700px) {
+            body { padding: 0.8rem; }
+            .history-item { flex-direction: column; gap: 8px; align-items: stretch; }
+        }
+        hr {
+            margin: 0.8rem 0;
+            border: 0;
+            height: 1px;
+            background: #c8e0bc;
+        }
+        .good { color: #2e7d32; }
+        .warning { color: #f57c00; }
+        .danger { color: #c62828; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🌱 Мониторинг теплицы 🌡️</h1>
+        <p>Анализ микроклимата | Числовая освещённость (люкс/у.е.)</p>
+    </div>
+
+    <div class="grid">
+        <div class="card form-card">
+            <h3 style="color:#2e5c2e;">📋 Параметры среды</h3>
+            <div class="input-group">
+                <label>🌾 Культура</label>
+                <select id="crop">
+                    <option value="tomato">Томат</option>
+                    <option value="cucumber">Огурец</option>
+                    <option value="pepper">Перец</option>
+                    <option value="greens">Зелень</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>🌡️ Температура (°C)</label>
+                <input type="number" id="temp" step="0.1" placeholder="от -10 до 50" value="25">
+            </div>
+            <div class="input-group">
+                <label>💧 Влажность (%)</label>
+                <input type="number" id="humidity" step="1" placeholder="0-100" value="65">
+            </div>
+            <div class="input-group">
+                <label>☀️ Освещённость <span>(люкс или условные единицы)</span></label>
+                <input type="number" id="lightLux" step="100" placeholder="0-20000" value="8000">
+                <div class="light-hint">
+                    <span>🌙 &lt;3000 — низкая</span>
+                    <span>🌤️ 3000-7000 — средняя</span>
+                    <span>☀️ &gt;7000 — высокая</span>
+                </div>
+            </div>
+            <button id="analyzeBtn">🔍 Анализировать микроклимат</button>
+            <button id="resetFormBtn" class="btn-reset">⟳ Сбросить форму</button>
+        </div>
+
+        <div class="card status-card">
+            <div class="status-badge">
+                <div id="statusIcon" style="font-size: 2rem;">🌿</div>
+                <div class="overall-status" id="overallStatus">—</div>
+                <div id="statusTime" style="font-size: 0.8rem;"></div>
+            </div>
+            <div id="detailInfo" style="margin: 10px 0; font-size: 0.9rem;"></div>
+            <div class="issues-list">
+                <strong>⚠️ Проблемы и рекомендации</strong>
+                <div id="recommendations"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-section">
+        <div class="history-header">
+            <span style="font-weight: bold; font-size: 1.2rem;">📜 История измерений</span>
+            <div class="filter-group">
+                <span>Фильтр по статусу:</span>
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">Все</option>
+                    <option value="Идеально">✅ Идеально</option>
+                    <option value="Требуется внимание">⚠️ Требуется внимание</option>
+                    <option value="Критично">🔴 Критично</option>
+                </select>
+                <button id="clearHistoryBtn" class="clear-btn">🗑️ Очистить всё</button>
+            </div>
+        </div>
+        <div id="historyList" class="history-list">
+            <div style="text-align:center; padding: 1rem;">Загрузка истории...</div>
+        </div>
+        
+        <div class="chart-container">
+            <strong>📈 График температуры (последние 7 записей)</strong>
+            <canvas id="tempChart" width="400" height="180" style="max-width:100%; height:auto;"></canvas>
+            <div id="chartPlaceholder" style="text-align:center; padding: 1rem; color:#5d6e47;">Нет данных для графика</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ------------------- НОРМАТИВЫ -------------------
+    const norms = {
+        tomato: { name: "Томат", tempMin:22, tempMax:28, humMin:60, humMax:70, lightReq:"high" },
+        cucumber: { name: "Огурец", tempMin:24, tempMax:30, humMin:70, humMax:85, lightReq:"medium" },
+        pepper: { name: "Перец", tempMin:23, tempMax:28, humMin:60, humMax:75, lightReq:"high" },
+        greens: { name: "Зелень", tempMin:18, tempMax:24, humMin:55, humMax:70, lightReq:"medium" }
+    };
+    
+    // Преобразование числового значения освещённости в категорию
+    function luxToCategory(lux) {
+        if (lux < 3000) return "low";
+        if (lux >= 3000 && lux <= 7000) return "medium";
+        return "high";
+    }
+    
+    function categoryToText(cat) {
+        if (cat === "low") return "Низкая";
+        if (cat === "medium") return "Средняя";
+        return "Высокая";
+    }
+    
+    // ------------------- ХРАНИЛИЩЕ -------------------
+    let history = [];
+    let chartInstance = null;
+    let currentFilter = "all";
+
+    function loadHistory() {
+        const stored = localStorage.getItem("greenhouse_history_v4");
+        if(stored) {
+            try { history = JSON.parse(stored); } catch(e) { history = []; }
+        } else { history = []; }
+        const savedFilter = localStorage.getItem("greenhouse_filter");
+        if(savedFilter) currentFilter = savedFilter;
+        const filterSelect = document.getElementById("statusFilter");
+        if(filterSelect) filterSelect.value = currentFilter;
+        renderHistory();
+        updateChart();
+    }
+
+    function saveHistory() {
+        localStorage.setItem("greenhouse_history_v4", JSON.stringify(history));
+        renderHistory();
+        updateChart();
+    }
+
+    function saveFilter() {
+        localStorage.setItem("greenhouse_filter", currentFilter);
+    }
+
+    function addToHistory(cropKey, temp, hum, lux, lightCategory, overallStatus, warningsShort) {
+        const record = {
+            id: Date.now(),
+            date: new Date().toLocaleString(),
+            cropKey: cropKey,
+            cropName: norms[cropKey].name,
+            temp: temp,
+            hum: hum,
+            lux: lux,
+            lightCategory: lightCategory,
+            overallStatus: overallStatus,
+            warningsShort: warningsShort.substring(0, 100)
+        };
+        history.unshift(record);
+        if(history.length > 15) history.pop();
+        saveHistory();
+    }
+
+    function deleteRecord(id) {
+        history = history.filter(r => r.id !== id);
+        saveHistory();
+    }
+
+    function clearAllHistory() {
+        if(confirm("Удалить всю историю измерений?")) {
+            history = [];
+            saveHistory();
+        }
+    }
+
+    function renderHistory() {
+        const container = document.getElementById("historyList");
+        if(!container) return;
+        let filtered = history;
+        if(currentFilter !== "all") {
+            filtered = history.filter(r => r.overallStatus === currentFilter);
+        }
+        if(filtered.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 1rem; color:#6b8c42;">📭 Нет записей (или нет записей с выбранным фильтром)</div>';
+            return;
+        }
+        let html = '';
+        filtered.forEach(rec => {
+            let statusClass = rec.overallStatus === "Идеально" ? "good" : (rec.overallStatus === "Критично" ? "danger" : "warning");
+            let lightDisplay = `${rec.lux} люкс (${categoryToText(rec.lightCategory)})`;
+            html += `
+                <div class="history-item">
+                    <div class="history-info">
+                        <strong>${rec.date}</strong> | ${rec.cropName}<br>
+                        🌡️${rec.temp}°C 💧${rec.hum}% ☀️${lightDisplay}<br>
+                        <span class="${statusClass}">${rec.overallStatus}</span> — ${rec.warningsShort}
+                    </div>
+                    <button class="delete-btn" data-id="${rec.id}">Удалить</button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = Number(btn.getAttribute('data-id'));
+                deleteRecord(id);
+            });
+        });
+    }
+
+    function updateChart() {
+        const canvas = document.getElementById("tempChart");
+        const placeholder = document.getElementById("chartPlaceholder");
+        if(!canvas) return;
+        let lastRecords = [...history].reverse().slice(-7);
+        if(lastRecords.length === 0) {
+            if(placeholder) placeholder.style.display = "block";
+            canvas.style.display = "none";
+            return;
+        }
+        if(placeholder) placeholder.style.display = "none";
+        canvas.style.display = "block";
+        const labels = lastRecords.map(r => {
+            let d = new Date(r.date);
+            return `${d.getHours()}:${d.getMinutes()}`;
+        });
+        const temps = lastRecords.map(r => r.temp);
+        if(chartInstance) chartInstance.destroy();
+        const ctx = canvas.getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Температура (°C)',
+                    data: temps,
+                    borderColor: '#d32f2f',
+                    backgroundColor: 'rgba(211,47,47,0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#2e7d32',
+                    pointBorderColor: '#fff',
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.raw}°C` } }
+                }
+            }
+        });
+    }
+
+    // ------------------- ОСНОВНАЯ ЛОГИКА АНАЛИЗА -------------------
+    function analyze() {
+        const crop = document.getElementById("crop").value;
+        let temp = parseFloat(document.getElementById("temp").value);
+        let hum = parseFloat(document.getElementById("humidity").value);
+        let lux = parseFloat(document.getElementById("lightLux").value);
+        
+        // Валидация
+        if(isNaN(temp)) { alert("Введите корректную температуру"); return; }
+        if(isNaN(hum)) { alert("Введите влажность числом"); return; }
+        if(isNaN(lux)) { alert("Введите освещённость числом (в люкс или у.е.)"); return; }
+        if(temp < -10 || temp > 50) { alert("Температура должна быть от -10 до 50°C"); return; }
+        if(hum < 0 || hum > 100) { alert("Влажность от 0 до 100%"); return; }
+        if(lux < 0 || lux > 25000) { alert("Освещённость должна быть от 0 до 25000 люкс (или у.е.)"); return; }
+        
+        const norm = norms[crop];
+        if(!norm) return;
+        
+        const lightCategory = luxToCategory(lux);
+        const lightTextRu = categoryToText(lightCategory);
+        
+        let problemMessages = [];
+        let goodMessages = [];
+        let hasCritical = false;
+        
+        // 1. Температура
+        if (temp < norm.tempMin) {
+            problemMessages.push("❄️ Температура ниже рекомендуемой");
+        } else if (temp > norm.tempMax) {
+            problemMessages.push("🔥 Риск перегрева растений");
+            hasCritical = true;
+        } else {
+            goodMessages.push(`✅ Температура ${temp}°C в норме (${norm.tempMin}-${norm.tempMax}°C)`);
+        }
+        
+        // 2. Влажность
+        if (hum < norm.humMin) {
+            problemMessages.push("💧 Необходимо повысить влажность");
+        } else if (hum > norm.humMax) {
+            problemMessages.push("🦠 Есть риск развития грибковых заболеваний");
+            hasCritical = true;
+        } else {
+            goodMessages.push(`✅ Влажность ${hum}% в норме (${norm.humMin}-${norm.humMax}%)`);
+        }
+        
+        // 3. Освещённость
+        const needLight = norm.lightReq;
+        let lightOk = false;
+        if (needLight === "high" && lightCategory === "high") lightOk = true;
+        else if (needLight === "medium" && (lightCategory === "medium" || lightCategory === "high")) lightOk = true;
+        else lightOk = false;
+        
+        if (!lightOk) {
+            problemMessages.push("💡 Рекомендуется использовать дополнительное освещение");
+        } else {
+            goodMessages.push(`✅ Освещённость ${lux} люкс (${lightTextRu}) соответствует норме`);
+        }
+        
+        let overall = "";
+        let overallIcon = "";
+        if (hasCritical) {
+            overall = "Критично";
+            overallIcon = "🔴⚠️";
+        } else if (problemMessages.length > 0) {
+            overall = "Требуется внимание";
+            overallIcon = "🟡⚙️";
+        } else {
+            overall = "Идеально";
+            overallIcon = "✅🌿";
+        }
+        
+        let recHtml = "";
+        problemMessages.forEach(msg => {
+            let colorClass = msg.includes("Риск") || msg.includes("грибковых") ? "issue-danger" : "issue-warning";
+            recHtml += `<div class="issue-item ${colorClass}">${msg}</div>`;
+        });
+        goodMessages.forEach(msg => {
+            recHtml += `<div class="issue-item issue-good">${msg}</div>`;
+        });
+        
+        if (recHtml === "") {
+            recHtml = '<div class="issue-item issue-good">✅ Все показатели в норме</div>';
+        }
+        
+        document.getElementById("overallStatus").innerHTML = `${overallIcon} ${overall}`;
+        document.getElementById("statusTime").innerHTML = `Анализ: ${new Date().toLocaleTimeString()}`;
+        document.getElementById("recommendations").innerHTML = recHtml;
+        document.getElementById("detailInfo").innerHTML = `<div>🌾 ${norm.name} | ${temp}°C / ${hum}% / ${lux} люкс (${lightTextRu})</div>`;
+        
+        let shortWarn = problemMessages.map(msg => msg.replace(/[❄️🔥💧🦠💡]/g, '').trim()).join("; ");
+        if (!shortWarn) shortWarn = "Все параметры в норме";
+        
+        addToHistory(crop, temp, hum, lux, lightCategory, overall, shortWarn);
+    }
+    
+    function resetForm() {
+        document.getElementById("crop").value = "tomato";
+        document.getElementById("temp").value = "25";
+        document.getElementById("humidity").value = "65";
+        document.getElementById("lightLux").value = "8000";
+        document.getElementById("overallStatus").innerHTML = "—";
+        document.getElementById("recommendations").innerHTML = '<div class="issue-item">Заполните форму и нажмите "Анализировать"</div>';
+        document.getElementById("detailInfo").innerHTML = "";
+        document.getElementById("statusTime").innerHTML = "";
+    }
+    
+    function initFilters() {
+        const filterSelect = document.getElementById("statusFilter");
+        filterSelect.addEventListener("change", (e) => {
+            currentFilter = e.target.value;
+            saveFilter();
+            renderHistory();
+        });
+        document.getElementById("clearHistoryBtn").addEventListener("click", clearAllHistory);
+    }
+    
+    window.addEventListener("DOMContentLoaded", () => {
+        loadHistory();
+        initFilters();
+        document.getElementById("analyzeBtn").addEventListener("click", analyze);
+        document.getElementById("resetFormBtn").addEventListener("click", resetForm);
+        resetForm();
+    });
+</script>
+</body>
+</html>
